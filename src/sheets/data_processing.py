@@ -575,7 +575,6 @@ class SheetProcessor:
         bsda_worker_stats = BsdaWorkerStatsProcessor(
             company_siret=self.siret,
             bsda_data_df=self.bs_dfs[BSDA],
-            bsda_transporters_data_df=self.transporter_data_dfs.get(BSDA),
             data_date_interval=data_date_interval,
         )
         self.computed.bsda_worker_stats_data = bsda_worker_stats.build()

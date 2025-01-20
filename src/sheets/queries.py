@@ -15,6 +15,10 @@ select
         then waste_details_quantity -- For appendix 1 we take the estimated quantity as received quantity
         else quantity_received
     end as quantity_received,
+    case 
+        when status='REFUSED' and quantity_refused is null then quantity_received -- If the BSDD is in status refused, then quantity_refused should be quantity_received
+        else quantity_refused
+    end as quantity_refused,
     waste_details_code as waste_code,
     waste_details_name as waste_name,
     processing_operation_done as processing_operation_code,
@@ -67,7 +71,15 @@ select
     emitter_company_address,
     recipient_company_siret,
     waste_details_quantity,
-    quantity_received,
+    case 
+        when (emitter_company_siret = :siret) and (emitter_type = 'APPENDIX1_PRODUCER') 
+        then waste_details_quantity -- For appendix 1 we take the estimated quantity as received quantity
+        else quantity_received
+    end as quantity_received,
+    case 
+        when status='REFUSED' and quantity_refused is null then quantity_received -- If the BSDD is in status refused, then quantity_refused should be quantity_received
+        else quantity_refused
+    end as quantity_refused,
     waste_details_code as waste_code,
     waste_details_name as waste_name,
     processing_operation_done as processing_operation_code,
@@ -118,7 +130,15 @@ select
     eco_organisme_siret,
     transporter_number_plate,
     transporter_transport_mode,
-    quantity_received,
+    case 
+        when (emitter_company_siret = :siret) and (emitter_type = 'APPENDIX1_PRODUCER') 
+        then waste_details_quantity -- For appendix 1 we take the estimated quantity as received quantity
+        else quantity_received
+    end as quantity_received,
+    case 
+        when status='REFUSED' and quantity_refused is null then quantity_received -- If the BSDD is in status refused, then quantity_refused should be quantity_received
+        else quantity_refused
+    end as quantity_refused,
     waste_details_code as waste_code
 from
     refined_zone_enriched.bsdd_transporter_enriched
@@ -151,7 +171,15 @@ select
     eco_organisme_siret,
     transporter_number_plate,
     transporter_transport_mode,
-    quantity_received,
+    case 
+        when (emitter_company_siret = :siret) and (emitter_type = 'APPENDIX1_PRODUCER') 
+        then waste_details_quantity -- For appendix 1 we take the estimated quantity as received quantity
+        else quantity_received
+    end as quantity_received,
+    case 
+        when status='REFUSED' and quantity_refused is null then quantity_received -- If the BSDD is in status refused, then quantity_refused should be quantity_received
+        else quantity_refused
+    end as quantity_refused,
     waste_details_code as waste_code
 from
     refined_zone_enriched.bsdd_transporter_enriched
@@ -271,7 +299,7 @@ where
 
 sql_bsdasri_query_str = """
 select
-   id,
+    id,
     created_at,
     transporter_taken_over_at as sent_at,
     destination_reception_date as received_at,
@@ -281,6 +309,11 @@ select
     destination_company_siret as recipient_company_siret,
     emitter_waste_weight_value as waste_details_quantity,
     destination_reception_waste_weight_value as quantity_received,
+    case 
+        when status='REFUSED' and destination_reception_waste_refused_weight_value is null 
+        then destination_reception_waste_weight_value
+        else destination_reception_waste_refused_weight_value
+    end as quantity_refused,
     destination_reception_waste_volume as volume,
     waste_code,
     destination_operation_code as processing_operation_code,

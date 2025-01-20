@@ -34,6 +34,7 @@ def sample_data():
             ],
             "waste_code": ["17 06 05*", "17 06 05*", "17 03 01*", "17 03 01*", "17 06 05*"],
             "waste_name": ["Waste A", "Waste A", "Waste B", "Waste B", "Waste A"],
+            "quantity_received": [20, 1.6, 32, 11, 7],
             "received_at": [
                 datetime(2024, 8, 10),
                 datetime(2024, 8, 12),
@@ -54,7 +55,6 @@ def sample_data():
                 datetime(2024, 8, 14),
                 datetime(2023, 8, 15),
             ],
-            "quantity_received": [20, 1.6, 32, 11, 7],
             "transporter_company_siret": [
                 "23456789012345",
                 "23456789012345",

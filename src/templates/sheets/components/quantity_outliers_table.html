@@ -17,6 +17,7 @@
                     <th scope="col">Code déchet</th>
                     <th scope="col">Nom du déchet</th>
                     <th scope="col">Quantité&nbsp;(t)</th>
+                    <th scope="col">Quantité refusée&nbsp;(t)</th>
                 </tr>
             </thead>
             <tbody>
@@ -43,6 +44,7 @@
                         <td>{{ row.waste_code }}</td>
                         <td>{{ row.waste_name }}</td>
                         <td class="td--right">{{ row.quantity|number|safe }}</td>
+                        <td class="td--right">{{ row.quantity_refused|number|safe }}</td>
                     </tr>
                 {% endfor %}
             </tbody>

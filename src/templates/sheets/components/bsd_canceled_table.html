@@ -12,6 +12,7 @@
                     <th scope="col">Code déchet</th>
                     <th scope="col">Nom du déchet</th>
                     <th scope="col">Quantité&nbsp;(t)</th>
+                    <th scope="col">Quantité refusée&nbsp;(t)</th>
                     <th scope="col">Motif renseigné</th>
                 </tr>
             </thead>
@@ -45,6 +46,13 @@
                         <td class="td--right">
                             {% if row.quantity_received %}
                                 {{ row.quantity_received|number|safe }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td class="td--right">
+                            {% if row.quantity_refused %}
+                                {{ row.quantity_refused|number|safe }}
                             {% else %}
                                 N/A
                             {% endif %}

@@ -51,6 +51,7 @@ bs_dtypes = {
     "recipient_company_siret": str,
     "waste_details_quantity": float,
     "quantity_received": float,
+    "quantity_refused": float,
     "waste_code": str,
     "status": str,
 }

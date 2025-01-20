@@ -23,6 +23,7 @@ def bsda_data():
                 "12345678900001",
             ],
             "waste_details_quantity": [10.5, 20, 30.5, 15, 5.9],
+            "quantity_received": [9.0, 20.5, 18.0, 14.5, 6.1],
             "sent_at": [
                 datetime(2024, 1, 15),
                 datetime(2024, 2, 15),

@@ -3,7 +3,7 @@ from datetime import datetime
 import pandas as pd
 import pytest
 
-from sheets.constants import BSDA, BSDD, BSFF
+from sheets.constants import BSDA, BSDASRI, BSDD, BSFF
 from sheets.data_extract import load_waste_code_data
 
 from ..graph_processors.html_components_processors import (
@@ -29,6 +29,7 @@ def sample_data() -> dict:
                 ],
                 "waste_code": ["01 01 01*", "01 01 01*", "01 01 03*", "01 01 03*"],
                 "quantity_received": [10, 20, 30, 19],
+                "quantity_refused": [3, None, 30, 7],
             }
         ),
         BSDA: pd.DataFrame(
@@ -58,6 +59,30 @@ def sample_data() -> dict:
                     datetime(2023, 6, 14),
                 ],
                 "waste_code": ["03 01 01*", "03 01 02*", "03 01 03*", "03 01 03*"],
+            }
+        ),
+        BSDASRI: pd.DataFrame(
+            {
+                "id": [11, 22, 33, 44],
+                "emitter_company_siret": ["12345678901234", "87654321098765", "98765432109876", "12345678901234"],
+                "recipient_company_siret": ["43210987654321", "43210987654321", "12345678901234", "87654321098769"],
+                "sent_at": [
+                    datetime(2023, 1, 8),
+                    datetime(2023, 2, 18),
+                    datetime(2023, 5, 11),
+                    datetime(2023, 5, 20),
+                ],
+                "received_at": [
+                    datetime(2023, 1, 11),
+                    datetime(2023, 3, 18),
+                    datetime(2023, 5, 24),
+                    datetime(2023, 5, 21),
+                ],
+                "waste_code": ["04 01 01*", "04 01 01*", "04 01 03*", "04 01 03*"],
+                "waste_name": ["Déchet A", None, "Déchet B", "Déchet B"],
+                "processing_operation_code": ["D10", "D10", "D5", "R1"],
+                "quantity_received": [7.3, 0.02, 0.54, 19],
+                "quantity_refused": [4.12, 0.01, 0.32, None],
             }
         ),
     }
@@ -213,6 +238,9 @@ def test_preprocess_bs_data(sample_data: dict, waste_code_data: pd.DataFrame):
                 "03 01 02*",
                 "03 01 03*",
                 "03 01 03*",
+                "04 01 01*",
+                "04 01 03*",
+                "04 01 03*",
             ],
             "flow_status": [
                 "outgoing",
@@ -226,9 +254,12 @@ def test_preprocess_bs_data(sample_data: dict, waste_code_data: pd.DataFrame):
                 "incoming",
                 "outgoing",
                 "transported",
+                "outgoing",
+                "incoming",
+                "outgoing",
             ],
-            "quantity_received": [30.000, 30.000, 9.300, 19.000, 12.500, 10.000, 32.000, 4.001, 1.000, 2.400, 7.400],
-            "unit": ["t", "t", "t", "t", "t", "t", "t", "t", "t", "t", "t"],
+            "quantity_received": [27.0, 0.0, 9.3, 12.0, 12.5, 10.0, 32.0, 4.001, 1.0, 2.4, 7.4, 7.3, 0.54, 19.0],
+            "unit": ["t", "t", "t", "t", "t", "t", "t", "t", "t", "t", "t", "t", "t", "t"],
         }
     )
     assert bs_data is not None
@@ -301,7 +332,10 @@ def test_preprocess_data(sample_data: dict, waste_code_data: pd.DataFrame):
     preprocessed_df = processor.preprocessed_df
 
     expected_output = pd.read_csv(
-        EXPECTED_FILES_PATH / "waste_flow_preprocessed_data_expected.csv", keep_default_na=False, dtype=str
+        EXPECTED_FILES_PATH / "waste_flow_preprocessed_data_expected.csv",
+        keep_default_na=False,
+        dtype=str,
+        index_col=0,
     )
     assert preprocessed_df is not None
     assert preprocessed_df.equals(expected_output)
@@ -408,7 +442,7 @@ def test_build(sample_data: dict, waste_code_data: pd.DataFrame):
     result = processor.build()
 
     assert isinstance(result, list)
-    assert len(result) == 23
+    assert len(result) == 25
     for record in result:
         assert "waste_code" in record
         assert "description" in record

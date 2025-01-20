@@ -2,7 +2,7 @@ import json
 import numbers
 from datetime import datetime
 from itertools import chain
-from typing import Any, Dict, List
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -138,7 +138,7 @@ class BsdStatsProcessor:
             (self.emitted_bs_stats, bs_emitted_data, self.packagings_data),
             (self.received_bs_stats, bs_received_data, self.packagings_data),
         ]:
-            df = to_process
+            df = to_process.copy()
 
             if self.bs_type == BSFF:
                 if (to_process_packagings is None) or (len(to_process_packagings) == 0):
@@ -253,6 +253,7 @@ class BsdStatsProcessor:
         # NOTE: only revision asked by the current organization are computed.
         bs_revised_data = self.bs_revised_data
         if bs_revised_data is not None:
+            bs_revised_data = bs_revised_data.copy()
             bs_ids = pd.concat([bs_emitted_data["id"], bs_received_data["id"]])
             bs_revised_data = bs_revised_data[bs_revised_data["bs_id"].isin(bs_ids)]
 
@@ -277,8 +278,18 @@ class BsdStatsProcessor:
                     self.packagings_data, left_on="id", right_on="bsff_id"
                 )[key].sum()
             else:
-                total_quantity_incoming = bs_received_data[key].sum()
-                total_quantity_outgoing = bs_emitted_data[key].sum()
+                df_received = bs_received_data.copy()
+                df_emitted = bs_emitted_data.copy()
+                if self.bs_type in [BSDD, BSDD_NON_DANGEROUS, BSDASRI]:
+                    # Handle quantity refused
+                    df_received["quantity_received"] = df_received["quantity_received"] - df_received[
+                        "quantity_refused"
+                    ].fillna(0)
+                    df_emitted["quantity_received"] = df_emitted["quantity_received"] - df_emitted[
+                        "quantity_refused"
+                    ].fillna(0)
+                total_quantity_incoming = df_received[key].sum()
+                total_quantity_outgoing = df_emitted[key].sum()
 
             self.quantities_stats[key]["total_quantity_incoming"] = total_quantity_incoming
             self.quantities_stats[key]["total_quantity_outgoing"] = total_quantity_outgoing
@@ -309,7 +320,7 @@ class BsdStatsProcessor:
                 )
 
     def _preprocess_data(self) -> None:
-        bs_data = self.bs_data
+        bs_data = self.bs_data.copy()
 
         bs_emitted_data = bs_data[
             (bs_data["emitter_company_siret"] == self.company_siret)
@@ -422,15 +433,20 @@ class WasteFlowsTableProcessor:
                 transport_df = self.transporters_data_df.get(bs_type)
 
                 if transport_df is not None:
+                    transport_df = transport_df.copy()
                     if len(df) > 0:
                         df = df.drop(
-                            columns=["sent_at", "quantity_received"],
+                            columns=["sent_at"],
                             errors="ignore",
                         )  # To avoid column duplication with transport data
 
                         if bs_type == BSFF:
                             if self.packagings_data is not None:
                                 # Quantity is taken from packagings data in case of BSFF
+                                df = df.drop(
+                                    columns=["quantity_received"],
+                                    errors="ignore",
+                                )
                                 df = df.merge(
                                     self.packagings_data[["bsff_id", "acceptation_weight", "acceptation_date"]],
                                     left_on="id",
@@ -459,8 +475,11 @@ class WasteFlowsTableProcessor:
                         if (not bs_type == BSFF) or (
                             self.packagings_data is None
                         ):  # BSFF stores quantity in packagings data
-                            transport_columns_to_take.append("quantity_received")
                             validation = "one_to_many"
+
+                        if bs_type in [BSDD, BSDD_NON_DANGEROUS]:
+                            # Handle quantity refused
+                            df["quantity_received"] = df["quantity_received"] - df["quantity_refused"].fillna(0)
 
                         df = df.merge(
                             transport_df[transport_columns_to_take],
@@ -485,7 +504,8 @@ class WasteFlowsTableProcessor:
                         )
                     else:
                         df = transport_df
-
+            elif bs_type == "BSDASRI":
+                df["quantity_received"] = df["quantity_received"] - df["quantity_refused"].fillna(0)
             dfs_to_concat.append(df)
 
         if len(dfs_to_concat) == 0:
@@ -695,6 +715,10 @@ class BsdCanceledTableProcessor:
                 if "waste_name" in bs_data.columns:
                     columns_to_take.append("waste_name")
 
+                # Handle quantity refused
+                if "quantity_refused" in bs_data.columns:
+                    columns_to_take.append("quantity_refused")
+
                 temp_df = pd.merge(
                     cancellations,
                     bs_data,
@@ -789,15 +813,19 @@ class SameEmitterRecipientTableProcessor:
             if (df is None) or (transport_df is None):
                 continue
 
+            columns_to_drop = ["sent_at", "transporter_company_siret"]
+
             # Handling multimodal
             df.drop(
-                columns=["sent_at", "quantity_received", "transporter_company_siret"],
+                columns=columns_to_drop,
                 errors="ignore",
                 inplace=True,
             )  # To avoid column duplication with transport data
 
+            transport_df_columns_to_take = ["bs_id", "sent_at", "transporter_company_siret"]
+
             df = df.merge(
-                transport_df[["bs_id", "sent_at", "quantity_received", "transporter_company_siret"]],
+                transport_df[transport_df_columns_to_take],
                 left_on="id",
                 right_on="bs_id",
                 how="left",
@@ -873,7 +901,7 @@ class StorageStatsProcessor:
         self.stock_by_waste_code = None
         self.total_stock = None
 
-    def _preprocess_data(self) -> pd.Series:
+    def _preprocess_data(self) -> pd.Series | None:
         siret = self.company_siret
 
         dfs_to_concat = [df for bs_type, df in self.bs_data_dfs.items() if bs_type != BSDD_NON_DANGEROUS]
@@ -883,6 +911,10 @@ class StorageStatsProcessor:
             return
 
         df = pd.concat(dfs_to_concat)
+
+        # Handle quantity refused
+        if "quantity_refused" in df.columns:
+            df["quantity_received"] = df["quantity_received"] - df["quantity_refused"].fillna(0)
 
         emitted_mask = (df.emitter_company_siret == siret) & df.sent_at.between(*self.data_date_interval)
         received_mask = (df.recipient_company_siret == siret) & df.received_at.between(*self.data_date_interval)
@@ -964,7 +996,7 @@ class ICPEItemsProcessor:
 
         self.preprocessed_df = None
 
-    def _preprocess_data(self) -> List[Dict[str, Any]]:
+    def _preprocess_data(self):
         df = self.icpe_data
 
         if df is None:
@@ -976,7 +1008,7 @@ class ICPEItemsProcessor:
 
         self.preprocessed_df = df
 
-    def build_context(self):
+    def build_context(self) -> dict:
         data = self.preprocessed_df
 
         # Handle "nan" textual values not being converted to JSON null
@@ -1038,10 +1070,13 @@ class TraceabilityInterruptionsProcessor:
             self.bsdd_data["no_traceability"]
             & (self.bsdd_data["recipient_company_siret"] == self.company_siret)
             & self.bsdd_data["received_at"].between(*self.data_date_interval)
-        ]
+        ].copy()
 
         if len(df_filtered) == 0:
             return
+
+        # Handle quantity refused
+        df_filtered["quantity_received"] = df_filtered["quantity_received"] - df_filtered["quantity_refused"].fillna(0)
 
         # Quantity and count are computed by waste code
         df_grouped = df_filtered.groupby("waste_code", as_index=False).agg(
@@ -1135,13 +1170,13 @@ class WasteIsDangerousStatementsProcessor:
 
         # Handling multimodal
         df.drop(
-            columns=["sent_at", "quantity_received"],
+            columns=["sent_at"],
             errors="ignore",
             inplace=True,
         )  # To avoid column duplication with transport data
 
         df = df.merge(
-            transport_df[["bs_id", "sent_at", "quantity_received", "transporter_company_siret"]],
+            transport_df[["bs_id", "sent_at", "transporter_company_siret"]],
             left_on="id",
             right_on="bs_id",
             how="left",
@@ -1155,6 +1190,7 @@ class WasteIsDangerousStatementsProcessor:
                 "waste_code": "max",
                 "sent_at": "min",
                 "quantity_received": "max",
+                "quantity_refused": "max",
             }
         )
 
@@ -1167,6 +1203,9 @@ class WasteIsDangerousStatementsProcessor:
 
         if len(df_filtered) == 0:
             return
+
+        # Handle quantity refused
+        df_filtered["quantity_received"] = df_filtered["quantity_received"] - df_filtered["quantity_refused"].fillna(0)
 
         df_grouped = df_filtered.groupby("waste_code", as_index=False).agg(
             quantity=pd.NamedAgg(column="quantity_received", aggfunc="sum"),
@@ -1295,13 +1334,13 @@ class PrivateIndividualsCollectionsTableProcessor:
 
         # Handling multimodal
         df.drop(
-            columns=["sent_at", "quantity_received"],
+            columns=["sent_at"],
             errors="ignore",
             inplace=True,
         )  # To avoid column duplication with transport data
 
         df = df.merge(
-            transport_df[["bs_id", "sent_at", "quantity_received", "transporter_company_siret"]],
+            transport_df[["bs_id", "sent_at", "transporter_company_siret"]],
             left_on="id",
             right_on="bs_id",
             how="left",
@@ -1429,8 +1468,8 @@ class QuantityOutliersTableProcessor:
         if bs_type in [BSDD, BSDD_NON_DANGEROUS, BSDA, BSFF] and (transporters_df is not None):
             # In this case we use transporter data
 
-            # Old 'bordereaux' data could contain quantity_received, we want to use the one from transport data
-            df = df.drop(columns=["quantity_received"], errors="ignore")
+            # Old 'bordereaux' data could contain sent_at column, we want to use the one from transport data
+            df = df.drop(columns=["sent_at"], errors="ignore")
 
             df_with_transport = df.merge(
                 transporters_df[["bs_id", "transporter_transport_mode", "sent_at", "quantity_received"]],
@@ -1507,6 +1546,9 @@ class QuantityOutliersTableProcessor:
                 "waste_code": e.waste_code,
                 "waste_name": e.waste_name if e.bs_type != "bsvhu" else None,
                 "quantity": format_number_str(e.quantity_received, 1) if not pd.isna(e.quantity_received) else None,
+                "quantity_refused": format_number_str(e.quantity_refused, 1)
+                if not pd.isna(e.quantity_refused)
+                else None,
                 "sent_at": e.sent_at.strftime("%d/%m/%Y %H:%M") if not pd.isna(e.sent_at) else None,
                 "received_at": e.received_at.strftime("%d/%m/%Y %H:%M") if not pd.isna(e.received_at) else None,
             }
@@ -1611,7 +1653,7 @@ class WasteProcessingWithoutICPERubriqueProcessor:
                         "stats": {
                             "total_bs": format_number_str(len(bs_df), 0),  # Total number of bordereaux
                             "total_quantity": format_number_str(
-                                bs_df["quantity_received"].sum(), 2
+                                (bs_df["quantity_received"] - bs_df["quantity_refused"].fillna(0)).sum(), 2
                             ),  # Total quantity processed
                         },
                     }
@@ -1674,6 +1716,11 @@ class WasteProcessingWithoutICPERubriqueProcessor:
                     self.data_date_interval,
                     self.packagings_data_df,
                 )
+
+                if "quantity_refused" in bs_filtered_df.columns:
+                    bs_filtered_df["quantity_received"] = bs_filtered_df["quantity_received"] - bs_filtered_df[
+                        "quantity_refused"
+                    ].fillna(0)
 
                 if len(bs_filtered_df) > 0:
                     found_processing_codes = bs_filtered_df["processing_operation_code"].unique()
@@ -1807,7 +1854,7 @@ class WasteProcessingWithoutICPERubriqueProcessor:
                     (df["recipient_company_siret"] == siret)
                     & (df["processing_operation_code"].isin(processing_codes))
                     & (df["processed_at"].between(*data_date_interval))
-                ]
+                ].copy()
             else:
                 if (packagings_data_df is not None) and (len(packagings_data_df) > 0):
                     df = df.merge(
@@ -1868,6 +1915,10 @@ class WasteProcessingWithoutICPERubriqueProcessor:
             df = item["bs_list"]
             if df is not None:
                 rows = []
+
+                if "quantity_refused" in df.columns:
+                    df["quantity_received"] = df["quantity_received"] - df["quantity_refused"].fillna(0)
+
                 for e in df.itertuples():
                     row = {
                         "id": e.readable_id if e.bs_type == "BSDD" else e.id,
@@ -1980,8 +2031,6 @@ class BsdaWorkerStatsProcessor:
         SIRET number of the establishment for which the data is displayed (used for data preprocessing).
     bsda_data_df: DataFrame
         DataFrame containing BSDA data.
-    bsda_transporters_data_df : DataFrame
-        DataFrames containing information about the transported BSDA waste.
     data_date_interval: tuple
         Date interval to filter data.
     """
@@ -1990,11 +2039,9 @@ class BsdaWorkerStatsProcessor:
         self,
         company_siret: str,
         bsda_data_df: pd.DataFrame,
-        bsda_transporters_data_df: pd.DataFrame | None,
         data_date_interval: tuple[datetime, datetime],
     ) -> None:
         self.bsda_data_df = bsda_data_df
-        self.bsda_transporters_data_df = bsda_transporters_data_df
         self.data_date_interval = data_date_interval
         self.company_siret = company_siret
 
@@ -2236,6 +2283,9 @@ class FollowedWithPNTTDTableProcessor:
                 else x["next_destination_company_vat_number"],
                 axis=1,
             )
+
+            # Handle quantity refused
+            df["quantity_received"] = df["quantity_received"] - df["quantity_refused"].fillna(0)
 
             # We compute the quantity by waste codes
             df_grouped = df.groupby(
@@ -2564,7 +2614,7 @@ class IntermediaryBordereauxStatsProcessor:
 
     def _preprocess_bs_data(self) -> None:
         """Preprocess raw 'bordereaux' data to prepare it to be displayed."""
-        bs_data_dfs = self.bs_data_dfs
+        bs_data_dfs = self.bs_data_dfs.copy()
 
         for bs_type, df in bs_data_dfs.items():
             if bs_type in [BSDD, BSDD_NON_DANGEROUS, BSDA]:
@@ -2592,6 +2642,11 @@ class IntermediaryBordereauxStatsProcessor:
 
             if len(df) > 0:
                 num_bordereaux = df["id"].nunique()
+
+                # handle quantity refused
+                if bs_type in [BSDD, BSDD_NON_DANGEROUS]:
+                    df["quantity_received"] = df["quantity_received"] - df["quantity_refused"].fillna(0)
+
                 quantity = df.drop_duplicates("id")["quantity_received"].sum()
                 self.bordereaux_stats[bs_type]["count"] = format_number_str(num_bordereaux, 0)
                 self.bordereaux_stats[bs_type]["quantity"] = format_number_str(quantity, 2)
@@ -2682,6 +2737,12 @@ class IncineratorOutgoingWasteProcessor:
         if len(dfs_to_concat) > 0:
             concat_df = pd.concat(dfs_to_concat)
             concat_df["waste_name"] = concat_df["waste_name"].fillna("")
+
+            # Handle quantity refused
+            if "quantity_refused" in concat_df.columns:
+                concat_df["quantity_received"] = concat_df["quantity_received"] - concat_df["quantity_refused"].fillna(
+                    0
+                )
 
             aggregated_data_df = (
                 concat_df.groupby(

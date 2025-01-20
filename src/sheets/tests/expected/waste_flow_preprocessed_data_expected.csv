@@ -1,24 +1,26 @@
-"waste_code","description","flow_status","quantity_received","unit"
-"01 01 01*","","outgoing","30","t"
-"01 01 03*","","incoming","30","t"
-"01 01 03*","","outgoing","9.3","t"
-"01 01 03*","","transported","19","t"
-"02 01 01*","","outgoing","12.5","t"
-"02 01 01*","","transported","10","t"
-"02 01 02*","","incoming","32","t"
-"02 01 03","déchets de tissus végétaux","outgoing","35","t"
-"02 01 03","déchets de tissus végétaux","outgoing","35","t"
-"03 01 01","déchets d'écorce et de liège","incoming","10","t"
-"03 01 01","déchets d'écorce et de liège","incoming","9.7","t"
-"03 01 01","déchets d'écorce et de liège","transported_incoming","30","t"
-"03 01 01*","","outgoing","4.001","t"
-"03 01 02","","incoming","20","m³"
-"03 01 02","","incoming","12","m³"
-"03 01 02","","transported_outgoing","25","t"
-"03 01 02*","","incoming","1","t"
-"03 01 03","","transported_incoming","18","t"
-"03 01 03*","","outgoing","2.4","t"
-"03 01 03*","","transported","7.4","t"
-"04 01 01","déchets d'écharnage et refentes","outgoing","15","m³"
-"04 01 02","résidus de pelanage","transported_outgoing","25","t"
-"05 01 01","","outgoing","15","m³"
+,waste_code,description,flow_status,quantity_received,unit
+0,01 01 01*,,outgoing,27,t
+1,01 01 03*,,outgoing,9.3,t
+2,01 01 03*,,transported,12,t
+3,02 01 01*,,outgoing,12.5,t
+4,02 01 01*,,transported,10,t
+5,02 01 02*,,incoming,32,t
+6,02 01 03,déchets de tissus végétaux,outgoing,35,t
+7,02 01 03,déchets de tissus végétaux,outgoing,35,t
+8,03 01 01,déchets d'écorce et de liège,incoming,10,t
+9,03 01 01,déchets d'écorce et de liège,incoming,9.7,t
+10,03 01 01,déchets d'écorce et de liège,transported_incoming,30,t
+11,03 01 01*,,outgoing,4.001,t
+12,03 01 02,,incoming,20,m³
+13,03 01 02,,incoming,12,m³
+14,03 01 02,,transported_outgoing,25,t
+15,03 01 02*,,incoming,1,t
+16,03 01 03,,transported_incoming,18,t
+17,03 01 03*,,outgoing,2.4,t
+18,03 01 03*,,transported,7.4,t
+19,04 01 01,déchets d'écharnage et refentes,outgoing,15,m³
+20,04 01 01*,,outgoing,7.3,t
+21,04 01 02,résidus de pelanage,transported_outgoing,25,t
+22,04 01 03*,déchets de dégraissage contenant des solvants sans phase liquide,incoming,0.54,t
+23,04 01 03*,déchets de dégraissage contenant des solvants sans phase liquide,outgoing,19,t
+24,05 01 01,,outgoing,15,m³

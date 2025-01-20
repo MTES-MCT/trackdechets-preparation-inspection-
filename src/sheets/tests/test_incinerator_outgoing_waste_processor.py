@@ -4,7 +4,7 @@ from datetime import datetime
 import pandas as pd
 import pytest
 
-from sheets.constants import BSDA, BSDD
+from sheets.constants import BSDA, BSDASRI, BSDD
 
 from ..graph_processors.html_components_processors import IncineratorOutgoingWasteProcessor
 from .constants import EXPECTED_FILES_PATH
@@ -28,6 +28,7 @@ def sample_data() -> dict:
                 "waste_name": ["Déchet A", None, "Déchet B", "Déchet B"],
                 "processing_operation_code": ["D10", "D10", "D5", "R1"],
                 "quantity_received": [10, 20, 30, 19],
+                "quantity_refused": [None, 0, 18, 5],
             }
         ),
         BSDA: pd.DataFrame(
@@ -47,6 +48,30 @@ def sample_data() -> dict:
                 "quantity_received": [12.5, 32, 9.3, 10],
             }
         ),
+        BSDASRI: pd.DataFrame(
+            {
+                "id": [11, 22, 33, 44],
+                "emitter_company_siret": ["12345678901234", "87654321098765", "98765432109876", "12345678901234"],
+                "recipient_company_siret": ["43210987654321", "43210987654321", "12345678901234", "87654321098769"],
+                "sent_at": [
+                    datetime(2023, 1, 8),
+                    datetime(2023, 2, 18),
+                    datetime(2023, 5, 11),
+                    datetime(2023, 5, 20),
+                ],
+                "received_at": [
+                    datetime(2023, 1, 11),
+                    datetime(2023, 3, 18),
+                    datetime(2023, 5, 24),
+                    datetime(2023, 5, 21),
+                ],
+                "waste_code": ["04 01 01*", "04 01 01*", "04 01 03*", "04 01 03*"],
+                "waste_name": ["Déchet A", None, "Déchet B", "Déchet B"],
+                "processing_operation_code": ["D10", "D10", "D5", "R1"],
+                "quantity_received": [7.3, 0.02, 0.54, 19],
+                "quantity_refused": [4.12, 0.01, 0.32, None],
+            }
+        ),
     }
 
     transporters_data_df = {
@@ -61,6 +86,7 @@ def sample_data() -> dict:
                     datetime(2023, 5, 20),
                 ],
                 "quantity_received": [10, 20, 30, 19],
+                "quantity_refused": [None, 0, 18, 5],
             }
         ),
         BSDA: pd.DataFrame(
@@ -127,7 +153,7 @@ def test_preprocess_bs_data(sample_data, sample_data_date_interval):
     processor._preprocess_bs_data()
 
     preprocessed_data = processor.preprocessed_data["dangerous"]
-    assert len(preprocessed_data) == 3
+    assert len(preprocessed_data) == 5
 
     expected_data = pd.DataFrame(
         [
@@ -151,6 +177,20 @@ def test_preprocess_bs_data(sample_data, sample_data_date_interval):
                 "processing_operation_code": "D10",
                 "quantity": 12.5,
                 "waste_name": "Déchet C",
+            },
+            {
+                "waste_code": "04 01 01*",
+                "recipient_company_siret": "43210987654321",
+                "processing_operation_code": "D10",
+                "quantity": 3.1799999999999997,
+                "waste_name": "Déchet A",
+            },
+            {
+                "waste_code": "04 01 03*",
+                "recipient_company_siret": "87654321098769",
+                "processing_operation_code": "R1",
+                "quantity": 19.0,
+                "waste_name": "Déchet B",
             },
         ]
     )

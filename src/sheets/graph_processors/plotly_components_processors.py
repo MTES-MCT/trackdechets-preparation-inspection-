@@ -74,7 +74,7 @@ class BsdQuantitiesGraph:
         return list(set(clean_quantity_variables_names))
 
     def _preprocess_data(self) -> None:
-        bs_data = self.bs_data
+        bs_data = self.bs_data.copy()
 
         incoming_data = bs_data[
             (bs_data["recipient_company_siret"] == self.company_siret)
@@ -91,6 +91,9 @@ class BsdQuantitiesGraph:
             # If there is a packagings_data DataFrame, then it means that we are
             # computing BSFF statistics, in this case we use the packagings data instead of
             # 'bordereaux' data as quantity information is stored at packaging level
+            incoming_data = incoming_data.copy()
+            outgoing_data = outgoing_data.copy()
+
             if self.bs_type == BSFF:
                 if self.packagings_data is None:
                     # Case when there is BSFFs but no packagings info
@@ -108,14 +111,24 @@ class BsdQuantitiesGraph:
                     .replace(0, np.nan)
                 )
             else:
+                # Handle quantity refused
+                if self.bs_type in [BSDD, BSDD_NON_DANGEROUS, BSDASRI]:
+                    incoming_data["quantity_received"] = incoming_data["quantity_received"] - incoming_data[
+                        "quantity_refused"
+                    ].fillna(0)
+
+                    outgoing_data["quantity_received"] = outgoing_data["quantity_received"] - outgoing_data[
+                        "quantity_refused"
+                    ].fillna(0)
+
+                outgoing_data_by_month = (
+                    outgoing_data.groupby(pd.Grouper(key="sent_at", freq="1M"))[variable_name].sum().replace(0, np.nan)
+                )
+
                 incoming_data_by_month = (
                     incoming_data.groupby(pd.Grouper(key="received_at", freq="1M"))[variable_name]
                     .sum()
                     .replace(0, np.nan)
-                )
-
-                outgoing_data_by_month = (
-                    outgoing_data.groupby(pd.Grouper(key="sent_at", freq="1M"))[variable_name].sum().replace(0, np.nan)
                 )
 
             self.incoming_data_by_month_series.append(incoming_data_by_month)
@@ -522,6 +535,11 @@ class WasteOriginProcessor:
 
         # We handle the case of failed postal code extraction
         concat_df.loc[concat_df["code_dep"].isna(), "cp_formatted"] = "Origine inconnue"
+
+        # Handle quantity refused
+        if "quantity_refused" in concat_df.columns:
+            concat_df["quantity_received"] = concat_df["quantity_received"] - concat_df["quantity_refused"].fillna(0)
+
         serie = (
             concat_df[concat_df["recipient_company_siret"] == self.company_siret]
             .groupby("cp_formatted")["quantity_received"]
@@ -666,6 +684,10 @@ class WasteOriginsMapProcessor:
             how="left",
             validate="many_to_one",
         )
+
+        # Handle quantity refused
+        if "quantity_refused" in concat_df.columns:
+            concat_df["quantity_received"] = concat_df["quantity_received"] - concat_df["quantity_refused"].fillna(0)
 
         # The 'Region' label is kept after aggregation
         df_grouped = (
@@ -1081,13 +1103,13 @@ class BsdaWorkerQuantityProcessor:
 
         # Handling multimodal
         bsda_data.drop(
-            columns=["sent_at", "quantity_received"],
+            columns=["sent_at"],
             errors="ignore",
             inplace=True,
         )  # To avoid column duplication with transport data
 
         bsda_data = bsda_data.merge(
-            transport_df[["bs_id", "sent_at", "quantity_received", "transporter_company_siret"]],
+            transport_df[["bs_id", "sent_at", "transporter_company_siret"]],
             left_on="id",
             right_on="bs_id",
             how="left",
@@ -2301,6 +2323,9 @@ class IntermediaryBordereauxQuantitiesGraphProcessor:
             df = df.drop_duplicates("id")
 
             if len(df) > 0:
+                if bs_type in [BSDD, BSDD_NON_DANGEROUS, BSDA, BSDASRI]:
+                    df["quantity_received"] = df["quantity_received"] - df["quantity_refused"].fillna(0)
+
                 df_by_month = df.groupby(pd.Grouper(key="sent_at", freq="1M"))["quantity_received"].sum()
                 self.bordereaux_stats[bs_type] = df_by_month
 

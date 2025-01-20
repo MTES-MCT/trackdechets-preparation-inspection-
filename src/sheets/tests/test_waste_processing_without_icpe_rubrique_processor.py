@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
 import pytest
 from pandas import Timestamp
@@ -26,6 +27,7 @@ def sample_data():
                 datetime(2023, 4, 3),
             ],
             "quantity_received": [12.5, 22, 30.1],
+            "quantity_refused": [0, 2, 25.1],
         }
     )
 
@@ -110,10 +112,11 @@ def test_preprocess_data_multi_rubriques(sample_data):
                 "processing_operation_code": ["D5", "D5"],
                 "processed_at": [Timestamp("2023-02-02 00:00:00"), Timestamp("2023-02-02 00:00:00")],
                 "quantity_received": [22.0, 5.0],
+                "quantity_refused": [2.0, np.nan],
                 "bs_type": ["BSDD", "BSDA"],
             }
         ),
-        "stats": {"total_bs": "2", "total_quantity": "27"},
+        "stats": {"total_bs": "2", "total_quantity": "25"},
     }
 
     assert item.keys() == expected_output.keys()
@@ -155,6 +158,7 @@ def test_preprocess_data_single_rubrique(sample_data):
                 "processing_operation_code": ["R2", "D8"],
                 "processed_at": [Timestamp("2023-04-03 00:00:00"), Timestamp("2023-01-01 00:00:00")],
                 "quantity_received": [15.0, 12.5],
+                "quantity_refused": [np.nan, 0.0],
                 "bs_type": ["BSDA", "BSDD"],
             }
         ),

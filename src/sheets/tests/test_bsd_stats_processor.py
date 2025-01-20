@@ -13,12 +13,12 @@ from ..graph_processors.html_components_processors import BsdStatsProcessor
 def sample_bs_data():
     # Create a sample DataFrame for bs_data
     created_at_datetimes = [
-        datetime.now() - timedelta(days=95),
-        datetime.now() - timedelta(days=65),
-        datetime.now() - timedelta(days=35),
-        datetime.now() - timedelta(days=20),
-        datetime.now() - timedelta(days=10),
-        datetime.now() - timedelta(days=5),
+        datetime(2024, 11, 1),
+        datetime(2024, 11, 4),
+        datetime(2024, 11, 9),
+        datetime(2024, 12, 1),
+        datetime(2024, 12, 18),
+        datetime(2024, 12, 31),
     ]
     sent_at_datetimes = [e + timedelta(days=1) for e in created_at_datetimes]
     received_at_datetimes = [e + timedelta(days=1) for e in sent_at_datetimes]
@@ -56,6 +56,7 @@ def sample_bs_data():
                 "PROCESSED",
             ],
             "quantity_received": [10, 20, 2.5, 5, 8, 6.7],
+            "quantity_refused": [1, None, 2.5, 0, None, 1.3],
             "volume": [10, 20, 2.5, 5, 8, 6.7],
         }
     )
@@ -101,6 +102,7 @@ def sample_bs_data_empty():
                 "SENT",
             ],
             "quantity_received": [10, None],
+            "quantity_refused": [2, None],
         }
     )
     return bs_data
@@ -112,10 +114,9 @@ def data_date_interval():
     Generate a tuple with two random dates representing a date interval.
     The first date is older than the second one.
     """
-    today = datetime.today()
-    days_before = random.randint(365, 500)  # Generate a random number of days up to one year
-    start_date = today - timedelta(days=days_before)
-    return start_date, today
+    start_date = datetime(2024, 11, 1)
+    end_date = datetime(2024, 12, 26)
+    return start_date, end_date
 
 
 @pytest.mark.parametrize(
@@ -131,15 +132,15 @@ def data_date_interval():
                     "processed_in_more_than_one_month_avg_processing_time": "60j",
                 },
                 "received_bs_stats": {
-                    "total": "3",
-                    "archived": "3",
+                    "total": "2",
+                    "archived": "2",
                     "processed_in_more_than_one_month_count": "1",
                     "processed_in_more_than_one_month_avg_processing_time": "60j",
                 },
                 "quantities_stats": {
                     "quantity_received": {
-                        "total_quantity_incoming": "34.7",
-                        "total_quantity_outgoing": "17.5",
+                        "total_quantity_incoming": "28",
+                        "total_quantity_outgoing": "14",
                         "bar_size_incoming": 100,
                         "bar_size_outgoing": 50,
                     }
@@ -153,8 +154,8 @@ def data_date_interval():
             "987654321",
             {
                 "emitted_bs_stats": {
-                    "total": "3",
-                    "archived": "3",
+                    "total": "2",
+                    "archived": "2",
                     "processed_in_more_than_one_month_count": "1",
                     "processed_in_more_than_one_month_avg_processing_time": "60j",
                 },
@@ -166,8 +167,8 @@ def data_date_interval():
                 },
                 "quantities_stats": {
                     "quantity_received": {
-                        "total_quantity_incoming": "17.5",
-                        "total_quantity_outgoing": "34.7",
+                        "total_quantity_incoming": "14",
+                        "total_quantity_outgoing": "28",
                         "bar_size_incoming": 50,
                         "bar_size_outgoing": 100,
                     }
@@ -215,23 +216,23 @@ def test_bsd_stats_processor(siret, sample_bs_data, data_date_interval, expected
                 "revised_bs_count": "0",
                 "pending_revisions_count": "0",
                 "received_bs_stats": {
-                    "total": "3",
-                    "archived": "3",
+                    "total": "2",
+                    "archived": "2",
                     "processed_in_more_than_one_month_count": "1",
                     "processed_in_more_than_one_month_avg_processing_time": "60j",
                 },
                 "quantities_stats": {
                     "quantity_received": {
-                        "total_quantity_incoming": "34.7",
-                        "total_quantity_outgoing": "17.5",
+                        "total_quantity_incoming": "28",
+                        "total_quantity_outgoing": "14",
                         "bar_size_incoming": 100,
                         "bar_size_outgoing": 50,
                     },
                     "volume": {
-                        "total_quantity_incoming": "34.7",
+                        "total_quantity_incoming": "28",
                         "total_quantity_outgoing": "17.5",
                         "bar_size_incoming": 100,
-                        "bar_size_outgoing": 50,
+                        "bar_size_outgoing": 62,
                     },
                 },
                 "weight_volume_ratio": "1 000",

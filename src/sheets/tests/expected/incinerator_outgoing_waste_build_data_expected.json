@@ -20,6 +20,20 @@
       "destination_company_siret": "87654321098765",
       "processing_opration": "D10",
       "quantity": "12.5"
+    },
+    {
+      "waste_code": "04 01 01*",
+      "waste_name": "Déchet A",
+      "destination_company_siret": "43210987654321",
+      "processing_opration": "D10",
+      "quantity": "3.18"
+    },
+    {
+      "waste_code": "04 01 03*",
+      "waste_name": "Déchet B",
+      "destination_company_siret": "87654321098769",
+      "processing_opration": "R1",
+      "quantity": "19"
     }
   ],
   "non_dangerous": [
